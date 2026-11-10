@@ -185,7 +185,7 @@ func ReadBytesForFile(filename string) ([]byte, error) {
 func readBytesForFile(filename string) ([]byte, error) {
 	// is the filename a url?
 	fileurl, _ := url.Parse(filename)
-	if fileurl.Scheme != "" {
+	if fileurl != nil && fileurl.Scheme != "" {
 		// yes, fetch it
 		bytes, err := fetchFile(filename)
 		if err != nil {
@@ -233,7 +233,8 @@ func readInfoFromBytes(filename string, bytes []byte) (*yaml.Node, error) {
 	return &info, nil
 }
 
-// ReadInfoForRef reads a file and return the fragment needed to resolve a $ref.
+// ReadInfoForRef reads a file and returns the fragment needed to resolve a $ref.
+// External file and HTTP $ref resolution is intended only for trusted local/CLI schemas, not untrusted server inputs.
 func ReadInfoForRef(basefile string, ref string) (*yaml.Node, error) {
 	fileCacheMutex.Lock()
 	defer fileCacheMutex.Unlock()
@@ -270,12 +271,25 @@ func ReadInfoForRef(basefile string, ref string) (*yaml.Node, error) {
 	}
 	info, err := readInfoFromBytes(filename, bytes)
 	if info != nil && info.Kind == yaml.DocumentNode {
-		info = info.Content[0]
+		if len(info.Content) == 0 {
+			info = nil
+		} else {
+			info = info.Content[0]
+		}
 	}
 	if err != nil {
 		log.Printf("File error: %v\n", err)
 	} else {
 		if info == nil {
+			if infoCacheEnable {
+				infoCache[ref] = nil
+			}
+			return nil, NewError(nil, fmt.Sprintf("could not resolve %s", ref))
+		}
+		if len(parts) > 2 || (len(parts) == 2 && parts[1] != "" && !strings.HasPrefix(parts[1], "/")) {
+			if infoCacheEnable {
+				infoCache[ref] = nil
+			}
 			return nil, NewError(nil, fmt.Sprintf("could not resolve %s", ref))
 		}
 		if len(parts) > 1 {
@@ -283,18 +297,24 @@ func ReadInfoForRef(basefile string, ref string) (*yaml.Node, error) {
 			for i, key := range path {
 				if i > 0 {
 					m := info
-					if true {
-						found := false
-						for i := 0; i < len(m.Content); i += 2 {
-							if m.Content[i].Value == key {
-								info = m.Content[i+1]
-								found = true
-							}
-						}
-						if !found {
+					if m == nil || m.Kind != yaml.MappingNode {
+						if infoCacheEnable {
 							infoCache[ref] = nil
-							return nil, NewError(nil, fmt.Sprintf("could not resolve %s", ref))
 						}
+						return nil, NewError(nil, fmt.Sprintf("could not resolve %s", ref))
+					}
+					found := false
+					for j := 0; j+1 < len(m.Content); j += 2 {
+						if m.Content[j].Value == key {
+							info = m.Content[j+1]
+							found = true
+						}
+					}
+					if !found {
+						if infoCacheEnable {
+							infoCache[ref] = nil
+						}
+						return nil, NewError(nil, fmt.Sprintf("could not resolve %s", ref))
 					}
 				}
 			}

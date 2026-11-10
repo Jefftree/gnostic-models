@@ -5461,11 +5461,15 @@ func NewXml(in *yaml.Node, context *compiler.Context) (*Xml, error) {
 
 // ResolveReferences resolves references found inside AdditionalPropertiesItem objects.
 func (m *AdditionalPropertiesItem) ResolveReferences(root string) (*yaml.Node, error) {
+	return m.resolveReferences(root, make(map[string]bool))
+}
+
+func (m *AdditionalPropertiesItem) resolveReferences(root string, seen map[string]bool) (*yaml.Node, error) {
 	errors := make([]error, 0)
 	{
 		p, ok := m.Oneof.(*AdditionalPropertiesItem_Schema)
 		if ok {
-			_, err := p.Schema.ResolveReferences(root)
+			_, err := p.Schema.resolveReferences(root, seen)
 			if err != nil {
 				return nil, err
 			}
@@ -5846,10 +5850,14 @@ func (m *Info) ResolveReferences(root string) (*yaml.Node, error) {
 
 // ResolveReferences resolves references found inside ItemsItem objects.
 func (m *ItemsItem) ResolveReferences(root string) (*yaml.Node, error) {
+	return m.resolveReferences(root, make(map[string]bool))
+}
+
+func (m *ItemsItem) resolveReferences(root string, seen map[string]bool) (*yaml.Node, error) {
 	errors := make([]error, 0)
 	for _, item := range m.Schema {
 		if item != nil {
-			_, err := item.ResolveReferences(root)
+			_, err := item.resolveReferences(root, seen)
 			if err != nil {
 				errors = append(errors, err)
 			}
@@ -5860,8 +5868,18 @@ func (m *ItemsItem) ResolveReferences(root string) (*yaml.Node, error) {
 
 // ResolveReferences resolves references found inside JsonReference objects.
 func (m *JsonReference) ResolveReferences(root string) (*yaml.Node, error) {
+	return m.resolveReferences(root, make(map[string]bool))
+}
+
+func (m *JsonReference) resolveReferences(root string, seen map[string]bool) (*yaml.Node, error) {
 	errors := make([]error, 0)
 	if m.XRef != "" {
+		ref := m.XRef
+		if seen[ref] {
+			return nil, compiler.NewError(nil, fmt.Sprintf("circular $ref: %s", ref))
+		}
+		seen[ref] = true
+		defer delete(seen, ref)
 		info, err := compiler.ReadInfoForRef(root, m.XRef)
 		if err != nil {
 			return nil, err
@@ -5870,7 +5888,7 @@ func (m *JsonReference) ResolveReferences(root string) (*yaml.Node, error) {
 			replacement, err := NewJsonReference(info, nil)
 			if err == nil {
 				*m = *replacement
-				return m.ResolveReferences(root)
+				return m.resolveReferences(root, seen)
 			}
 		}
 		return info, nil
@@ -5966,9 +5984,13 @@ func (m *NamedResponseValue) ResolveReferences(root string) (*yaml.Node, error) 
 
 // ResolveReferences resolves references found inside NamedSchema objects.
 func (m *NamedSchema) ResolveReferences(root string) (*yaml.Node, error) {
+	return m.resolveReferences(root, make(map[string]bool))
+}
+
+func (m *NamedSchema) resolveReferences(root string, seen map[string]bool) (*yaml.Node, error) {
 	errors := make([]error, 0)
 	if m.Value != nil {
-		_, err := m.Value.ResolveReferences(root)
+		_, err := m.Value.resolveReferences(root, seen)
 		if err != nil {
 			errors = append(errors, err)
 		}
@@ -6256,8 +6278,18 @@ func (m *ParametersItem) ResolveReferences(root string) (*yaml.Node, error) {
 
 // ResolveReferences resolves references found inside PathItem objects.
 func (m *PathItem) ResolveReferences(root string) (*yaml.Node, error) {
+	return m.resolveReferences(root, make(map[string]bool))
+}
+
+func (m *PathItem) resolveReferences(root string, seen map[string]bool) (*yaml.Node, error) {
 	errors := make([]error, 0)
 	if m.XRef != "" {
+		ref := m.XRef
+		if seen[ref] {
+			return nil, compiler.NewError(nil, fmt.Sprintf("circular $ref: %s", ref))
+		}
+		seen[ref] = true
+		defer delete(seen, ref)
 		info, err := compiler.ReadInfoForRef(root, m.XRef)
 		if err != nil {
 			return nil, err
@@ -6266,7 +6298,7 @@ func (m *PathItem) ResolveReferences(root string) (*yaml.Node, error) {
 			replacement, err := NewPathItem(info, nil)
 			if err == nil {
 				*m = *replacement
-				return m.ResolveReferences(root)
+				return m.resolveReferences(root, seen)
 			}
 		}
 		return info, nil
@@ -6424,10 +6456,14 @@ func (m *PrimitivesItems) ResolveReferences(root string) (*yaml.Node, error) {
 
 // ResolveReferences resolves references found inside Properties objects.
 func (m *Properties) ResolveReferences(root string) (*yaml.Node, error) {
+	return m.resolveReferences(root, make(map[string]bool))
+}
+
+func (m *Properties) resolveReferences(root string, seen map[string]bool) (*yaml.Node, error) {
 	errors := make([]error, 0)
 	for _, item := range m.AdditionalProperties {
 		if item != nil {
-			_, err := item.ResolveReferences(root)
+			_, err := item.resolveReferences(root, seen)
 			if err != nil {
 				errors = append(errors, err)
 			}
@@ -6572,8 +6608,18 @@ func (m *Responses) ResolveReferences(root string) (*yaml.Node, error) {
 
 // ResolveReferences resolves references found inside Schema objects.
 func (m *Schema) ResolveReferences(root string) (*yaml.Node, error) {
+	return m.resolveReferences(root, make(map[string]bool))
+}
+
+func (m *Schema) resolveReferences(root string, seen map[string]bool) (*yaml.Node, error) {
 	errors := make([]error, 0)
 	if m.XRef != "" {
+		ref := m.XRef
+		if seen[ref] {
+			return nil, compiler.NewError(nil, fmt.Sprintf("circular $ref: %s", ref))
+		}
+		seen[ref] = true
+		defer delete(seen, ref)
 		info, err := compiler.ReadInfoForRef(root, m.XRef)
 		if err != nil {
 			return nil, err
@@ -6582,7 +6628,7 @@ func (m *Schema) ResolveReferences(root string) (*yaml.Node, error) {
 			replacement, err := NewSchema(info, nil)
 			if err == nil {
 				*m = *replacement
-				return m.ResolveReferences(root)
+				return m.resolveReferences(root, seen)
 			}
 		}
 		return info, nil
@@ -6602,7 +6648,7 @@ func (m *Schema) ResolveReferences(root string) (*yaml.Node, error) {
 		}
 	}
 	if m.AdditionalProperties != nil {
-		_, err := m.AdditionalProperties.ResolveReferences(root)
+		_, err := m.AdditionalProperties.resolveReferences(root, seen)
 		if err != nil {
 			errors = append(errors, err)
 		}
@@ -6614,21 +6660,21 @@ func (m *Schema) ResolveReferences(root string) (*yaml.Node, error) {
 		}
 	}
 	if m.Items != nil {
-		_, err := m.Items.ResolveReferences(root)
+		_, err := m.Items.resolveReferences(root, seen)
 		if err != nil {
 			errors = append(errors, err)
 		}
 	}
 	for _, item := range m.AllOf {
 		if item != nil {
-			_, err := item.ResolveReferences(root)
+			_, err := item.resolveReferences(root, seen)
 			if err != nil {
 				errors = append(errors, err)
 			}
 		}
 	}
 	if m.Properties != nil {
-		_, err := m.Properties.ResolveReferences(root)
+		_, err := m.Properties.resolveReferences(root, seen)
 		if err != nil {
 			errors = append(errors, err)
 		}

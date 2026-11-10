@@ -32,6 +32,22 @@ func UnpackMap(in *yaml.Node) (*yaml.Node, bool) {
 	if in == nil {
 		return nil, false
 	}
+	if in.Kind == yaml.DocumentNode {
+		if len(in.Content) == 0 {
+			return nil, false
+		}
+		return UnpackMap(in.Content[0])
+	}
+	if in.Kind == yaml.ScalarNode && in.Tag == "!!null" {
+		return &yaml.Node{
+			Kind:   yaml.MappingNode,
+			Line:   in.Line,
+			Column: in.Column,
+		}, true
+	}
+	if in.Kind != yaml.MappingNode || len(in.Content)%2 != 0 {
+		return nil, false
+	}
 	return in, true
 }
 
@@ -39,7 +55,7 @@ func UnpackMap(in *yaml.Node) (*yaml.Node, bool) {
 func SortedKeysForMap(m *yaml.Node) []string {
 	keys := make([]string, 0)
 	if m.Kind == yaml.MappingNode {
-		for i := 0; i < len(m.Content); i += 2 {
+		for i := 0; i+1 < len(m.Content); i += 2 {
 			keys = append(keys, m.Content[i].Value)
 		}
 	}
@@ -53,7 +69,7 @@ func MapHasKey(m *yaml.Node, key string) bool {
 		return false
 	}
 	if m.Kind == yaml.MappingNode {
-		for i := 0; i < len(m.Content); i += 2 {
+		for i := 0; i+1 < len(m.Content); i += 2 {
 			itemKey := m.Content[i].Value
 			if key == itemKey {
 				return true
@@ -69,7 +85,7 @@ func MapValueForKey(m *yaml.Node, key string) *yaml.Node {
 		return nil
 	}
 	if m.Kind == yaml.MappingNode {
-		for i := 0; i < len(m.Content); i += 2 {
+		for i := 0; i+1 < len(m.Content); i += 2 {
 			itemKey := m.Content[i].Value
 			if key == itemKey {
 				return m.Content[i+1]
@@ -218,7 +234,7 @@ func InvalidKeysInMap(m *yaml.Node, allowedKeys []string, allowedPatterns []*reg
 	if m == nil || m.Kind != yaml.MappingNode {
 		return invalidKeys
 	}
-	for i := 0; i < len(m.Content); i += 2 {
+	for i := 0; i+1 < len(m.Content); i += 2 {
 		key := m.Content[i].Value
 		found := false
 		// does the key match an allowed key?
